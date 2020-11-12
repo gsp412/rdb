@@ -106,8 +106,9 @@ const (
 	TypeSet    ValueType = 2
 	TypeZSet   ValueType = 3
 	TypeHash   ValueType = 4
+    TypeZSet2   ValueType = 5
 
-	TypeHashZipmap    ValueType = 9
+    TypeHashZipmap    ValueType = 9
 	TypeListZiplist   ValueType = 10
 	TypeSetIntset     ValueType = 11
 	TypeZSetZiplist   ValueType = 12
@@ -305,7 +306,34 @@ func (d *decode) readObject(key []byte, typ ValueType, expiry int64) error {
 			d.event.Hset(key, field, value)
 		}
 		d.event.EndHash(key)
-	case TypeHashZipmap:
+    case TypeZSet2:
+        cardinality, _, err := d.readLength()
+        if err != nil {
+            return err
+        }
+        d.event.StartZSet(key, int64(cardinality), expiry)
+
+        for i := uint32(0); i < cardinality; i++ {
+            member, err := d.readString()
+            if err != nil {
+                return err
+            }
+            // TODO score解析有问题,有时间再搞搞
+            // fmt.Println(string(member))
+            //b := make([]byte, 2)
+            //_, _ = io.ReadFull(d.r, b)
+            //fmt.Println(b[0], b[1], b[2], b[3])
+
+            out, err := d.readUint64()
+
+            //score, err := d.readFloat64()
+            //if err != nil {
+            // return err
+            //}
+            d.event.Zadd(key, float64(out), member)
+        }
+        d.event.EndZSet(key)
+    case TypeHashZipmap:
 		return d.readZipmap(key, expiry)
 	case TypeListZiplist:
 		return d.readZiplist(key, expiry, true)
@@ -628,10 +656,10 @@ func (d *decode) checkHeader() error {
 	}
 
 	version, _ := strconv.ParseInt(string(header[5:]), 10, 64)
-	if version < 1 || version > 7 {
+	if version < 1 || version > 9 {
 		return fmt.Errorf("rdb: invalid RDB version number %d", version)
 	}
-
+    fmt.Printf("rdb: RDB version number %d \n", version)
 	return nil
 }
 
