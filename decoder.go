@@ -10,7 +10,7 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/cupcake/rdb/crc64"
+	"github.com/gsp412/rdb/crc64"
 )
 
 // A Decoder must be implemented to parse a RDB file.
@@ -318,19 +318,9 @@ func (d *decode) readObject(key []byte, typ ValueType, expiry int64) error {
             if err != nil {
                 return err
             }
-            // TODO score解析有问题,有时间再搞搞
-            // fmt.Println(string(member))
-            //b := make([]byte, 2)
-            //_, _ = io.ReadFull(d.r, b)
-            //fmt.Println(b[0], b[1], b[2], b[3])
-
-            out, err := d.readUint64()
-
-            //score, err := d.readFloat64()
-            //if err != nil {
-            // return err
-            //}
-            d.event.Zadd(key, float64(out), member)
+            var score float64
+            _ = binary.Read(d.r, binary.LittleEndian, &score)
+            d.event.Zadd(key, score, member)
         }
         d.event.EndZSet(key)
     case TypeHashZipmap:
